@@ -1,11 +1,18 @@
 import os
+import sys
+import glob
 import numpy as np
 import networkx as nx
 import cv2
 
-from process import clean_image
-from skeleton import get_skeleton
-from graph_utils import (
+# Project root = one level above this file (main/vein_graph.py)
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
+from main.process import clean_image
+from main.skeleton import get_skeleton
+from main.graph_utils import (
     build_graph,
     largest_component,
     simplify_graph,
@@ -13,11 +20,29 @@ from graph_utils import (
     compute_equation,
 )
 
+# ---- Centralised folder layout ----
+# Change these if you rearrange the project again.
+DIRS = {
+    "images":      os.path.join(PROJECT_ROOT, "images"),
+    "skeleton":    os.path.join(PROJECT_ROOT, "leaf-skeleton"),
+    "overlay":     os.path.join(PROJECT_ROOT, "leaf-graph-overlay"),
+    "clean":       os.path.join(PROJECT_ROOT, "leaf-graph-clean"),
+    "nodes":       os.path.join(PROJECT_ROOT, "leaf-node"),
+    "edges":       os.path.join(PROJECT_ROOT, "leaf-edges"),
+}
+IMAGE_EXTENSIONS = ("*.jpg", "*.jpeg", "*.png", "*.JPG", "*.JPEG", "*.PNG")
+
 MIN_AREA = 3        # min vein-component area in the cleaning step
 MIN_BRANCH = 3      # skeleton spur-pruning length
 MIN_LEAF_LEN = 25   # graph simplification: remove leaf branches shorter than this
 DEFAULT_MAX_DIM = 1500
 DEFAULT_THRESHOLDS = (3, 8, 12)
+
+
+def _ensure_dirs():
+    for key, path in DIRS.items():
+        if key != "images":
+            os.makedirs(path, exist_ok=True)
 
 
 def _prepare_gray(image, max_dim):
@@ -65,7 +90,7 @@ def process_leaf(
     min_area=MIN_AREA,
     min_branch=MIN_BRANCH,
     min_leaf_len=MIN_LEAF_LEN,
-    output_dir=None,
+    save=True,
     verbose=True,
 ):
     """Build one connected vein graph from any leaf image.
@@ -129,36 +154,36 @@ def process_leaf(
               f"E={raw_graph.number_of_edges()}")
         print(f"  network: N={N} E={E} C={C} mu={mu} L={L} R={R}")
 
-    if output_dir:
-        _save_outputs(image_path, gray, best, graph, results, output_dir)
+    if save:
+        _save_outputs(image_path, gray, best, graph, results)
 
     return results
 
 
-def _save_outputs(image_path, gray, best, graph, results, output_dir):
-    os.makedirs(output_dir, exist_ok=True)
+def _save_outputs(image_path, gray, best, graph, results):
+    _ensure_dirs()
     stem = os.path.splitext(os.path.basename(image_path))[0]
 
-    skel_path = os.path.join(output_dir, f"{stem}_skeleton.png")
+    skel_path = os.path.join(DIRS["skeleton"], f"{stem}_skeleton.png")
     cv2.imwrite(skel_path, (best["skeleton"].astype(np.uint8)) * 255)
 
-    overlay_path = os.path.join(output_dir, f"{stem}_graph_overlay.jpg")
+    overlay_path = os.path.join(DIRS["overlay"], f"{stem}_graph_overlay.jpg")
     visualize_graph(graph, overlay_path, background=gray)
 
-    clean_path = os.path.join(output_dir, f"{stem}_graph_clean.png")
+    clean_path = os.path.join(DIRS["clean"], f"{stem}_graph_clean.png")
     visualize_graph(graph, clean_path, background=None)
 
-    _export_csvs(graph, stem, output_dir)
+    _export_csvs(graph, stem)
 
     results["skeleton_path"] = skel_path
     results["overlay_path"] = overlay_path
     results["clean_path"] = clean_path
 
 
-def _export_csvs(graph, stem, output_dir):
+def _export_csvs(graph, stem):
     import csv
 
-    nodes_path = os.path.join(output_dir, f"{stem}_nodes.csv")
+    nodes_path = os.path.join(DIRS["nodes"], f"{stem}_nodes.csv")
     with open(nodes_path, "w", newline="") as fh:
         writer = csv.writer(fh)
         writer.writerow(["index", "x", "y", "degree"])
@@ -167,9 +192,25 @@ def _export_csvs(graph, stem, output_dir):
             writer.writerow([n, int(round(float(x))), int(round(float(y))),
                              int(graph.degree(n))])
 
-    edges_path = os.path.join(output_dir, f"{stem}_edges.csv")
+    edges_path = os.path.join(DIRS["edges"], f"{stem}_edges.csv")
     with open(edges_path, "w", newline="") as fh:
         writer = csv.writer(fh)
         writer.writerow(["source", "target", "length"])
         for s, e, d in graph.edges(data=True):
             writer.writerow([s, e, round(float(d["weight"]), 2)])
+
+
+def process_all(suffix_filter=None, **kwargs):
+    """Process every image currently in the images/ folder."""
+    _ensure_dirs()
+    paths = []
+    for ext in IMAGE_EXTENSIONS:
+        paths.extend(glob.glob(os.path.join(DIRS["images"], ext)))
+    paths = sorted(set(paths))
+    if not paths:
+        print("No images found in", DIRS["images"])
+        return []
+    results = []
+    for path in paths:
+        results.append(process_leaf(path, **kwargs))
+    return results
