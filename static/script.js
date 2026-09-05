@@ -3,12 +3,12 @@
   "use strict";
 
   var PHASES = [
-    [0, "PLANTING SEED..."],
-    [15, "DETECTING VEINS..."],
-    [35, "SKELETONIZING..."],
-    [55, "BUILDING GRAPH..."],
-    [75, "COMPUTING R (N+E)xMU+L..."],
-    [90, "ASKING NATURE FOR A VIDEO..."],
+    "TRIANGULATING...",
+    "CALIBRATING...",
+    "SYNTHESIZING...",
+    "INTERPOLATING...",
+    "EXTRAPOLATING...",
+    "AGGREGATING...",
   ];
 
   var dz = document.getElementById("dropzone");
@@ -22,27 +22,102 @@
 
   document.getElementById("year").textContent = new Date().getFullYear();
 
-  function setPhase(i) {
-    loadText.textContent = PHASES[i][1];
-    bar.style.width = PHASES[i][0] + "%";
+  /* ------------------------------------------------------------------ */
+  /*  8-BIT SOUND (Web Audio, no files needed)                          */
+  /* ------------------------------------------------------------------ */
+  function ac() {
+    if (!window.__ac) {
+      window.__ac = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (window.__ac.state === "suspended") window.__ac.resume();
+    return window.__ac;
   }
 
+  function tone(freq, when, dur, type, vol) {
+    var c = ac(),
+      o = c.createOscillator(),
+      g = c.createGain();
+    o.type = type || "square";
+    o.frequency.value = freq;
+    o.connect(g);
+    g.connect(c.destination);
+    var t0 = c.currentTime + when;
+    g.gain.setValueAtTime(vol || 0.1, t0);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.start(t0);
+    o.stop(t0 + dur + 0.03);
+  }
+
+  /* little retro game-start jingle */
+  function playOpenJingle() {
+    var seq = [523, 659, 784, 1047, 784, 1047, 1319];
+    seq.forEach(function (f, i) {
+      var last = i === seq.length - 1;
+      tone(f, i * 0.11, last ? 0.55 : 0.13, "square", last ? 0.16 : 0.09);
+    });
+    tone(262, 0.77, 0.6, "triangle", 0.1);
+  }
+
+  /* mechanical grinding noise while the leaf is being processed */
+  var procTimer = null,
+    procTick = 0;
+  function startProcessing() {
+    stopProcessing();
+    procTick = 0;
+    procTimer = setInterval(function () {
+      tone(190 + Math.random() * 70, 0, 0.06, "square", 0.045);
+      if (procTick % 4 === 3) {
+        tone(85, 0, 0.1, "sawtooth", 0.06); /* heavy clunk */
+      }
+      if (procTick % 5 === 2) {
+        tone(420 + Math.random() * 80, 0, 0.03, "square", 0.03); /* tick */
+      }
+      procTick++;
+    }, 130);
+  }
+  function stopProcessing() {
+    if (procTimer) {
+      clearInterval(procTimer);
+      procTimer = null;
+    }
+  }
+
+  /* play on load; retry on first user gesture (autoplay lock) */
+  var played = false;
+  function tryPlay() {
+    if (played) return;
+    played = true;
+    try {
+      playOpenJingle();
+    } catch (e) {}
+  }
+  window.addEventListener("load", tryPlay);
+  document.addEventListener("pointerdown", tryPlay);
+  document.addEventListener("keydown", tryPlay);
+
+  /* ------------------------------------------------------------------ */
+  /*  LOADING SEQUENCE                                                   */
+  /* ------------------------------------------------------------------ */
   function showLoading() {
     dz.hidden = true;
     errorBox.hidden = true;
     errorBox.textContent = "";
     results.hidden = true;
     loading.hidden = false;
-    setPhase(0);
+    loadText.textContent = PHASES[0];
+    bar.style.width = "5%";
     var i = 0;
     window._phaseTimer = setInterval(function () {
-      i = Math.min(i + 1, PHASES.length - 1);
-      setPhase(i);
-    }, 2600);
+      i = (i + 1) % PHASES.length;
+      loadText.textContent = PHASES[i];
+      bar.style.width = Math.min(90, 8 + (i / PHASES.length) * 82) + "%";
+    }, 850);
+    startProcessing();
   }
 
   function hideLoading() {
     clearInterval(window._phaseTimer);
+    stopProcessing();
     loading.hidden = true;
     dz.hidden = false;
   }
@@ -67,6 +142,8 @@
       })
       .then(function (res) {
         hideLoading();
+        tone(784, 0, 0.12, "square", 0.1); /* ding */
+        tone(1319, 0.13, 0.35, "square", 0.12);
         if (!res.ok) {
           showError(res.body.error);
           return;
@@ -78,6 +155,67 @@
       });
   }
 
+  /* ------------------------------------------------------------------ */
+  /*  LIGHTBOX (click any stage photo)                                   */
+  /* ------------------------------------------------------------------ */
+  function buildLightbox() {
+    var ids = ["img-original", "img-skeleton", "img-overlay", "img-clean"];
+    var caps = ["ORIGINAL LEAF", "SKELETON", "GRAPH OVERLAY", "CLEAN GRAPH"];
+    var el = ids.map(function (id) { return document.getElementById(id); });
+
+    var ov = document.createElement("div");
+    ov.className = "lightbox";
+    ov.innerHTML =
+      '<button class="lb-close" aria-label="close">X</button>' +
+      '<button class="lb-nav lb-prev" aria-label="previous">&lt;</button>' +
+      '<figure><img alt=""><figcaption></figcaption></figure>' +
+      '<button class="lb-next lb-nav" aria-label="next">&gt;</button>';
+    document.body.appendChild(ov);
+
+    var img = ov.querySelector("img"),
+      cap = ov.querySelector("figcaption");
+    var cur = 0;
+
+    function show(i) {
+      cur = (i + el.length) % el.length;
+      img.src = el[cur].src;
+      cap.textContent = caps[cur];
+    }
+    function open(i) {
+      show(i);
+      ov.classList.add("open");
+    }
+    function close() {
+      ov.classList.remove("open");
+    }
+
+    el.forEach(function (thumb, i) {
+      thumb.style.cursor = "zoom-in";
+      thumb.addEventListener("click", function () { open(i); });
+    });
+
+    ov.addEventListener("click", function (e) {
+      if (e.target === ov || e.target.classList.contains("lb-close")) close();
+    });
+    ov.querySelector(".lb-prev").addEventListener("click", function (e) {
+      e.stopPropagation();
+      show(cur - 1);
+    });
+    ov.querySelector(".lb-next").addEventListener("click", function (e) {
+      e.stopPropagation();
+      show(cur + 1);
+    });
+    document.addEventListener("keydown", function (e) {
+      if (!ov.classList.contains("open")) return;
+      if (e.key === "Escape") close();
+      if (e.key === "ArrowLeft") show(cur - 1);
+      if (e.key === "ArrowRight") show(cur + 1);
+    });
+  }
+
+  /* ------------------------------------------------------------------ */
+  /*  RENDER RESULTS                                                     */
+  /* ------------------------------------------------------------------ */
   function render(body) {
     var imgs = body.images, s = body.stats;
 
@@ -156,7 +294,11 @@
     }
   }
 
-  /* upload triggers */
+  /* ------------------------------------------------------------------ */
+  /*  EVENTS                                                             */
+  /* ------------------------------------------------------------------ */
+  buildLightbox();
+
   dz.addEventListener("click", function () { fileInput.click(); });
   ["dragover", "drop"].forEach(function (evt) {
     dz.addEventListener(evt, function (e) {
