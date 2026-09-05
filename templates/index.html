@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TOUCH GRASS - stop doomscrolling</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 16'%3E%3Crect width='14' height='16' fill='%231c3b1f'/%3E%3Crect x='5' y='0' width='4' height='2' fill='%232f6f2f'/%3E%3Crect x='3' y='1' width='8' height='3' fill='%233f8f3f'/%3E%3Crect x='1' y='3' width='12' height='4' fill='%234fa14a'/%3E%3Crect x='0' y='5' width='13' height='3' fill='%234fa14a'/%3E%3Crect x='3' y='7' width='9' height='3' fill='%233f8f3f'/%3E%3Crect x='5' y='9' width='5' height='3' fill='%232f6f2f'/%3E%3Crect x='6' y='12' width='2' height='2' fill='%237fdc52'/%3E%3Crect x='7' y='11' width='3' height='2' fill='%232f6f2f'/%3E%3Crect x='8' y='13' width='2' height='2' fill='%231c3b1f'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="sun">
+    <div class="sun-core"></div>
+  </div>
+  <div class="pixel-cloud c1"></div>
+  <div class="pixel-cloud c2"></div>
+
+  <main>
+    <header>
+      <div class="rainbow"></div>
+      <div class="logo-row">
+        <svg class="pixel-leaf" viewBox="0 0 14 16" aria-hidden="true">
+          <rect x="5" y="0" width="4" height="2" fill="#2f6f2f"/>
+          <rect x="3" y="1" width="8" height="3" fill="#3f8f3f"/>
+          <rect x="1" y="3" width="12" height="4" fill="#4fa14a"/>
+          <rect x="0" y="5" width="13" height="3" fill="#4fa14a"/>
+          <rect x="3" y="7" width="9" height="3" fill="#3f8f3f"/>
+          <rect x="5" y="9" width="5" height="3" fill="#2f6f2f"/>
+          <rect x="6" y="12" width="2" height="2" fill="#7fdc52"/>
+          <rect x="7" y="11" width="3" height="2" fill="#2f6f2f"/>
+          <rect x="8" y="13" width="2" height="2" fill="#1c3b1f"/>
+        </svg>
+        <h1>TOUCH GRASS</h1>
+      </div>
+      <p class="tagline">STOP DOOMSCROLLING &bull; UPLOAD A LEAF &bull; GET NATURE</p>
+    </header>
+
+    <section id="dropzone" class="panel dropzone">
+      <div class="dz-inner">
+        <div class="dz-icon">&#127807;</div>
+        <p class="dz-title">DROP A LEAF PHOTO HERE</p>
+        <p class="dz-sub">or click to browse (.jpg / .png)</p>
+      </div>
+      <input id="file" type="file" accept="image/*" hidden>
+    </section>
+
+    <section id="loading" class="panel loading" hidden>
+      <div class="sprout">
+        <div class="sprout-stem"></div>
+        <div class="sprout-leaf"></div>
+        <div class="sprout-leaf leaf2"></div>
+      </div>
+      <p id="load-text" class="load-text">PLANTING SEED...</p>
+      <div class="progress"><div id="progress-bar" class="progress-fill"></div></div>
+    </section>
+
+    <section id="error" class="panel error-panel" hidden></section>
+
+    <section id="results" hidden>
+      <h2 class="section-title">YOUR LEAF'S JOURNEY</h2>
+
+      <div class="galley">
+        <figure class="shot">
+          <img id="img-original" alt="original leaf">
+          <figcaption>1. ORIGINAL</figcaption>
+        </figure>
+        <figure class="shot">
+          <img id="img-skeleton" alt="skeleton">
+          <figcaption>2. SKELETON</figcaption>
+        </figure>
+        <figure class="shot">
+          <img id="img-overlay" alt="graph overlay">
+          <figcaption>3. GRAPH OVERLAY</figcaption>
+        </figure>
+        <figure class="shot">
+          <img id="img-clean" alt="clean graph">
+          <figcaption>4. GRAPH CLEAN</figcaption>
+        </figure>
+      </div>
+
+      <h2 class="section-title">THE COMPUTATION</h2>
+      <div class="compute-grid">
+        <div class="panel panel--blue formula">
+          <p class="formula">R = (N + E) &times; &mu; + L</p>
+          <ul id="steps" class="steps"></ul>
+        </div>
+        <div class="panel panel--pink stats">
+          <div class="stat">
+            <span class="stat-label">N</span><span class="stat-value" id="stat-N">-</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">E</span><span class="stat-value" id="stat-E">-</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">C</span><span class="stat-value" id="stat-C">-</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">&mu;</span><span class="stat-value" id="stat-mu">-</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">L</span><span class="stat-value" id="stat-L">-</span>
+          </div>
+          <div class="stat stat-r">
+            <span class="stat-label">R</span><span class="stat-value" id="stat-R">-</span>
+          </div>
+        </div>
+      </div>
+
+      <h2 class="section-title">YOUR NATURE MEDICINE</h2>
+      <div class="panel panel--sun video-panel">
+        <div id="video-body"></div>
+        <p id="video-meta" class="video-meta"></p>
+        <button id="again" class="pix-btn">&#127807; GROW ANOTHER</button>
+      </div>
+    </section>
+  </main>
+
+  <div class="grass">
+    <span class="fl fl1">&#127800;</span>
+    <span class="fl fl2">&#127801;</span>
+    <span class="fl fl3">&#127803;</span>
+    <span class="fl fl4">&#127805;</span>
+    <span class="fl fl5">&#127807;</span>
+  </div>
+  <footer>
+    &copy; <span id="year"></span> TOUCH GRASS &bull; LEAF VEINS &rarr; R &rarr; LONG NATURE VIDEO &bull; GO OUTSIDE
+  </footer>
+
+  <script src="/static/script.js"></script>
+</body>
+</html>
